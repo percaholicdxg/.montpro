@@ -554,6 +554,13 @@
       .mods-wrap { grid-template-columns:1fr; gap:2.5rem; }
       .about-wrap { grid-template-columns:1fr; gap:2.5rem; }
       footer { flex-direction:column; text-align:center; }
+
+      /* hero title menor no mobile */
+      .hero-title { font-size: clamp(2.8rem, 18vw, 5rem) !important; }
+      .hero-sub { font-size: 1.1rem; }
+
+      /* grid do vídeo portrait: empilha vertical */
+      .video-portrait-row { grid-template-columns: 1fr !important; }
     }
   </style>
 </head>
@@ -641,7 +648,7 @@
   </div>
 
   <!-- Linha 2: portrait + 16:9 lado a lado -->
-  <div class="reveal" style="display:grid; grid-template-columns:1fr 2fr; gap:1.5rem; margin-top:1.5rem;">
+  <div class="reveal video-portrait-row" style="display:grid; grid-template-columns:1fr 2fr; gap:1.5rem; margin-top:1.5rem;">
     <div style="aspect-ratio:1080/1350; overflow:hidden; border-radius:12px; position:relative;">
       <iframe
         src="https://www.youtube.com/embed/-ngPNo7UOSg?autoplay=1&mute=1&loop=1&playlist=-ngPNo7UOSg&controls=0&modestbranding=1&rel=0"
