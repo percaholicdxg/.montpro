@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>.mont pro — Pagamento via Pix</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Syne+Mono&family=Barlow+Condensed:wght@300;400;600&display=swap" rel="stylesheet"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --black: #050707; --deep: #080e09;
+      --glow: #2aff6b; --border: #1c2e1e;
+      --muted: #3a5040; --text: #c8d9cb; --white: #e8f0ea; --mid: #111a12;
+    }
+    body {
+      background: var(--black); color: var(--text);
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 300; min-height: 100vh;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 2rem 1.5rem;
+      position: relative; overflow-x: hidden;
+    }
+
+    /* grid bg */
+    body::before {
+      content:''; position:fixed; inset:0; pointer-events:none;
+      background-image:
+        linear-gradient(rgba(42,255,107,.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(42,255,107,.03) 1px, transparent 1px);
+      background-size: 50px 50px;
+      mask-image: radial-gradient(ellipse 70% 70% at 50% 50%, black, transparent);
+    }
+
+    /* noise */
+    body::after {
+      content:''; position:fixed; inset:0; pointer-events:none; z-index:100;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
+      opacity:.5;
+    }
+
+    .card {
+      background: var(--deep);
+      border: 1px solid var(--border);
+      max-width: 420px; width: 100%;
+      position: relative; z-index: 1;
+      animation: fadeUp .7s ease both;
+    }
+    .card::before {
+      content:''; position:absolute; top:0; left:0; right:0;
+      height:2px; background:var(--glow);
+      box-shadow:0 0 20px rgba(42,255,107,.4);
+    }
+
+    /* corners */
+    .corner {
+      position:absolute; width:16px; height:16px;
+      border-color:var(--glow); border-style:solid;
+    }
+    .corner.tl { top:10px; left:10px; border-width:1px 0 0 1px; }
+    .corner.tr { top:10px; right:10px; border-width:1px 1px 0 0; }
+    .corner.bl { bottom:10px; left:10px; border-width:0 0 1px 1px; }
+    .corner.br { bottom:10px; right:10px; border-width:0 1px 1px 0; }
+
+    .card-top {
+      padding: 2rem 2rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+      text-align: center;
+    }
+    .logo {
+      font-family: 'Syne Mono', monospace;
+      font-size: 1rem; color: var(--white);
+      margin-bottom: 1.5rem; display: block;
+    }
+    .logo b { color: var(--glow); }
+
+    .badge {
+      display: inline-flex; align-items: center; gap: .5rem;
+      background: rgba(42,255,107,.07);
+      border: 1px solid rgba(42,255,107,.2);
+      padding: .35rem .9rem;
+      font-family: 'Syne Mono', monospace;
+      font-size: .6rem; letter-spacing: .2em;
+      color: var(--glow); text-transform: uppercase;
+      margin-bottom: 1.2rem;
+    }
+    .badge::before { content:'●'; font-size:.5rem; animation: blink 1.4s infinite; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.2} }
+
+    .price-display {
+      font-family: 'Syne', sans-serif; font-weight: 800;
+      font-size: 3.5rem; line-height: 1; color: var(--white);
+    }
+    .price-display sup { font-size: 1.3rem; color: var(--muted); font-weight: 400; vertical-align: super; }
+    .price-once {
+      font-family: 'Syne Mono', monospace;
+      font-size: .6rem; letter-spacing: .18em; color: var(--glow);
+      margin-top: .4rem;
+    }
+
+    /* QR area */
+    .qr-area {
+      padding: 2rem;
+      display: flex; flex-direction: column; align-items: center; gap: 1.2rem;
+    }
+
+    .qr-wrap {
+      background: #fff;
+      padding: 14px;
+      display: inline-block;
+      position: relative;
+    }
+    #qrcode canvas, #qrcode img { display: block; }
+
+    .qr-label {
+      font-family: 'Syne Mono', monospace;
+      font-size: .62rem; letter-spacing: .2em;
+      color: var(--muted); text-transform: uppercase;
+      text-align: center;
+    }
+
+    /* divider */
+    .or-div {
+      display: flex; align-items: center; gap: 1rem;
+      width: 100%; color: var(--muted);
+      font-family: 'Syne Mono', monospace; font-size: .6rem; letter-spacing: .15em;
+    }
+    .or-div::before, .or-div::after { content:''; flex:1; height:1px; background:var(--border); }
+
+    /* copy key */
+    .copy-block {
+      width: 100%;
+      background: var(--mid);
+      border: 1px solid var(--border);
+      padding: 1rem 1.2rem;
+      display: flex; align-items: center; justify-content: space-between; gap: .8rem;
+    }
+    .copy-info { flex: 1; min-width: 0; }
+    .copy-lbl {
+      font-family: 'Syne Mono', monospace;
+      font-size: .55rem; letter-spacing: .18em; color: var(--muted);
+      text-transform: uppercase; margin-bottom: .2rem;
+    }
+    .copy-val {
+      font-family: 'Syne Mono', monospace;
+      font-size: .85rem; color: var(--white);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .copy-btn {
+      background: rgba(42,255,107,.1);
+      border: 1px solid rgba(42,255,107,.25);
+      color: var(--glow);
+      font-family: 'Syne Mono', monospace;
+      font-size: .6rem; letter-spacing: .12em; text-transform: uppercase;
+      padding: .5rem .9rem; cursor: pointer; flex-shrink: 0;
+      transition: background .2s;
+    }
+    .copy-btn:hover { background: rgba(42,255,107,.2); }
+    .copy-btn.copied { background: rgba(42,255,107,.25); color: #fff; }
+
+    /* steps */
+    .steps {
+      width: 100%;
+      display: flex; flex-direction: column; gap: .6rem;
+    }
+    .step-row {
+      display: flex; align-items: flex-start; gap: .8rem;
+      font-size: .88rem; color: var(--muted); line-height: 1.5;
+    }
+    .step-num-sm {
+      font-family: 'Syne Mono', monospace;
+      font-size: .6rem; color: var(--glow);
+      background: rgba(42,255,107,.08);
+      border: 1px solid rgba(42,255,107,.15);
+      width: 22px; height: 22px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; margin-top: 1px;
+    }
+
+    /* card bottom */
+    .card-bottom {
+      border-top: 1px solid var(--border);
+      padding: 1.2rem 2rem;
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: .5rem;
+    }
+    .safe-badge {
+      display: flex; align-items: center; gap: .5rem;
+      font-family: 'Syne Mono', monospace;
+      font-size: .58rem; letter-spacing: .12em; color: var(--muted);
+    }
+    .safe-badge::before { content:'🔒'; font-size:.75rem; }
+    .back-link {
+      font-family: 'Syne Mono', monospace;
+      font-size: .6rem; letter-spacing: .12em; color: var(--muted);
+      text-decoration: none; text-transform: uppercase;
+      transition: color .2s;
+    }
+    .back-link:hover { color: var(--glow); }
+
+    /* confirmation */
+    .confirm-block {
+      width: 100%;
+      background: rgba(42,255,107,.05);
+      border: 1px solid rgba(42,255,107,.15);
+      padding: 1rem 1.2rem;
+      text-align: center;
+    }
+    .confirm-block p {
+      font-size: .85rem; color: var(--muted); line-height: 1.6;
+    }
+    .confirm-block b { color: var(--glow); }
+
+    @keyframes fadeUp {
+      from { opacity:0; transform:translateY(24px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <div class="corner tl"></div>
+  <div class="corner tr"></div>
+  <div class="corner bl"></div>
+  <div class="corner br"></div>
+
+  <!-- topo -->
+  <div class="card-top">
+    <span class="logo"><b>.</b>mont pro</span>
+    <div class="badge">Pagamento seguro via Pix</div>
+    <div class="price-display"><sup>R$</sup>100</div>
+    <div class="price-once">// pagamento único · acesso vitalício</div>
+  </div>
+
+  <!-- QR + chave -->
+  <div class="qr-area">
+
+    <div class="qr-label">// escaneie com o app do seu banco</div>
+    <div class="qr-wrap">
+      <div id="qrcode"></div>
+    </div>
+
+    <button class="copy-btn" id="copyQrBtn" onclick="copyQr()" style="width:100%; padding:.7rem; display:flex; align-items:center; justify-content:center; gap:.6rem;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="8" y="8" width="13" height="13" rx="1"/><path d="M4 16H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v1"/></svg><span>Copiar QR Code (Pix Copia e Cola)</span></button>
+
+    <div class="or-div">ou copie a chave</div>
+
+    <div class="copy-block">
+      <div class="copy-info">
+        <div class="copy-lbl">Chave Pix · Telefone</div>
+        <div class="copy-val">+55 12 98184-7718</div>
+      </div>
+      <button class="copy-btn" id="copyBtn" onclick="copyKey()">Copiar</button>
+    </div>
+
+    <!-- passos -->
+    <div class="steps">
+      <div class="step-row">
+        <div class="step-num-sm">1</div>
+        <span>Abra o app do seu banco e vá em <b style="color:var(--text)">Pix</b></span>
+      </div>
+      <div class="step-row">
+        <div class="step-num-sm">2</div>
+        <span>Escaneie o QR code ou cole a chave acima</span>
+      </div>
+      <div class="step-row">
+        <div class="step-num-sm">3</div>
+        <span>Confirme o valor de <b style="color:var(--glow)">R$100,00</b> e envie</span>
+      </div>
+      <div class="step-row">
+        <div class="step-num-sm">4</div>
+        <span>Envie o comprovante pro <b style="color:var(--text)">Diogo</b> via WhatsApp</span>
+      </div>
+    </div>
+
+    <!-- após pagamento -->
+    <div class="confirm-block">
+      <p>Após o pagamento, mande o comprovante no<br>
+      WhatsApp: <b>+55 12 98184-7718</b><br>
+      e receba o acesso em minutos.</p>
+    </div>
+
+  </div>
+
+  <!-- rodapé -->
+  <div class="card-bottom">
+    <div class="safe-badge">Pix oficial Banco Central</div>
+    <a href="montpro.html" class="back-link">← voltar ao site</a>
+  </div>
+</div>
+
+<script>
+  // Gera QR Code com o payload PIX
+  const pixPayload = "00020101021226550014BR.GOV.BCB.PIX0114+55129818477180215Curso .mont pro5204000053039865406100.005802BR5905Diogo6013CARAGUATATUBA62110507MONTPRO6304E187";
+
+  new QRCode(document.getElementById("qrcode"), {
+    text: pixPayload,
+    width: 220,
+    height: 220,
+    colorDark: "#000000",
+    colorLight: "#ffffff",
+    correctLevel: QRCode.CorrectLevel.M
+  });
+
+  // Copiar payload Pix Copia e Cola
+  function copyQr() {
+    navigator.clipboard.writeText(pixPayload).then(() => {
+      const btn = document.getElementById("copyQrBtn");
+      btn.querySelector("span").textContent = "Copiado! Cole no seu banco ✓";
+      btn.classList.add("copied");
+      setTimeout(() => {
+        btn.querySelector("span").textContent = "Copiar QR Code (Pix Copia e Cola)";
+        btn.classList.remove("copied");
+      }, 3000);
+    });
+  }
+
+  // Copiar chave
+  function copyKey() {
+    navigator.clipboard.writeText('+5512981847718').then(() => {
+      const btn = document.getElementById('copyBtn');
+      btn.textContent = 'Copiado ✓';
+      btn.classList.add('copied');
+      setTimeout(() => {
+        btn.textContent = 'Copiar';
+        btn.classList.remove('copied');
+      }, 2500);
+    });
+  }
+</script>
+</body>
+</html>
